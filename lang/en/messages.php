@@ -1,0 +1,57 @@
+<?php
+
+// general application messages
+//
+// Keys prefixed with a service name (Mail, Otp, ReCaptcha, Throttle, Turnstile,
+// Upload) are the end-user texts those services write to the error bag. They
+// live here, not in a per-service config, so one translation file covers all
+// of Flick. A translation may leave any key out; the English below fills in.
+
+return [
+    'AllCachedViewFilesWereDeleted' => 'All cached view files were deleted.',
+    'InvalidSecurityToken' => 'Your session has expired. Please refresh the page.',
+    'MailInvalidAddress' => 'Invalid email address: :address',
+    'MailSendFailed' => 'Failed to send email',
+    'MessagesHeader' => 'Please Correct the Following Error(s):',
+    'OtpCodeExpired' => 'The code has expired. Request a new one.',
+    'OtpCodeIncorrect' => 'The code is incorrect.',
+    'OtpCodeUnknown' => 'The code is invalid or has expired.',
+    'OtpCooldown' => 'Please wait before requesting another code.',
+    'OtpNoPendingCode' => 'No code is pending verification.',
+    'OtpTooManyAttempts' => 'Too many incorrect attempts. Request a new code.',
+    'ReCaptchaActionMismatch' => 'reCAPTCHA action mismatch',
+    'ReCaptchaEmptyResponse' => 'Empty response from reCAPTCHA API',
+    'ReCaptchaHostnameMismatch' => 'reCAPTCHA hostname mismatch',
+    'ReCaptchaInvalidRequestMethod' => 'Invalid request method',
+    'ReCaptchaInvalidResponse' => 'Invalid response from reCAPTCHA API',
+    'ReCaptchaMissingToken' => 'Missing reCAPTCHA response token',
+    'ReCaptchaRequestFailed' => 'Failed to verify reCAPTCHA: :reason',
+    'ReCaptchaScoreBelowThreshold' => 'Score below threshold',
+    'ReCaptchaVerificationFailed' => 'reCAPTCHA verification failed: :codes',
+    'SessionHasExpired' => 'Your session has expired. Please refresh the page.',
+    'SessionWasDestroyed' => 'The Flick SESSION has been successfully deleted.',
+    'SomeFilesCouldNotBeDeleted' => 'Some files could not be deleted.',
+    'ThrottleMinute' => ':count minute',
+    'ThrottleMinutes' => ':count minutes',
+    'ThrottleSecond' => ':count second',
+    'ThrottleSeconds' => ':count seconds',
+    'ThrottleTooManyAttempts' => 'Too many attempts. Try again in :wait.',
+    'TurnstileActionMismatch' => 'Turnstile action mismatch',
+    'TurnstileEmptyResponse' => 'Empty response from Turnstile API',
+    'TurnstileHostnameMismatch' => 'Turnstile hostname mismatch',
+    'TurnstileInvalidRequestMethod' => 'Invalid request method',
+    'TurnstileInvalidResponse' => 'Invalid response from Turnstile API',
+    'TurnstileMissingToken' => 'Missing Turnstile response token',
+    'TurnstileRequestFailed' => 'Failed to verify Turnstile: :reason',
+    'TurnstileVerificationFailed' => 'Turnstile verification failed: :codes',
+    'UploadErrorCantWrite' => 'Upload failed: the file could not be written to disk.',
+    'UploadErrorExtension' => 'Upload failed: a server extension stopped the upload.',
+    'UploadErrorFormSize' => 'The uploaded file exceeds the maximum file size allowed by the form.',
+    'UploadErrorIniSize' => 'The uploaded file exceeds the maximum file size allowed by the server.',
+    'UploadErrorNoTmpDir' => 'Upload failed: the server is missing a temporary folder.',
+    'UploadErrorPartial' => 'The file was only partially uploaded. Please try again.',
+    'UploadFailed' => 'Upload failed.',
+    'UploadFileTooLarge' => 'File size (:size) exceeds maximum allowed size (:max).',
+    'UploadInvalidFileType' => 'invalid file type.',
+    'UploadUnexpectedFileType' => 'Invalid file type. Expected: :expected, got: :actual',
+];

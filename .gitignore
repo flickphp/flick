@@ -1,0 +1,15 @@
+/vendor/
+
+.claude/
+.cursor/
+.idea/
+.vscode/
+.zed/
+
+.DS_Store
+.env
+.phpunit.cache/
+*.log
+composer.lock
+composer.local.json
+phpunit.xml

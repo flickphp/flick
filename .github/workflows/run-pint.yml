@@ -1,0 +1,65 @@
+name: Check styling
+
+on:
+  push:
+    # `branches:` is load-bearing, not decoration. GitHub does not evaluate
+    # `paths:` for tag pushes ("Path filters are not evaluated for pushes of
+    # tags"), and the release workflow pushes a v* tag for every release.
+    # Naming branches and no tags keeps release tags from starting this job.
+    branches:
+      - main
+    paths:
+      - '**.php'
+      - '.github/workflows/run-pint.yml'
+      - 'pint.json'
+      - 'composer.json'
+
+# No `permissions:` block, deliberately. This job reports; it does not write.
+# It used to run Pint in fix mode with `contents: write` and auto-commit the
+# result via git-auto-commit-action, which meant a formatter update could
+# rewrite every file in the package and push it with nobody reading the diff.
+# Worse, GitHub suppresses workflow triggers for GITHUB_TOKEN pushes, so the
+# styled commit never ran the test suite — and that untested tree is what got
+# tagged for release. Style drift is now a red build you fix with
+# `composer format`, the same way a failing test is.
+
+# Only the newest run per branch is interesting; older ones are superseded.
+concurrency:
+  group: pint-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      # Pint is installed on its own rather than through `composer install`:
+      # linting must not depend on the package's dependency graph resolving,
+      # and laravel/pro both require flickphp/flick, which would drag package
+      # publishing state into a style check.
+      #
+      # The constraint mirrors require-dev in composer.json — keep them equal,
+      # `verify-boilerplate.sh` fails the build if they drift. A caret is safe
+      # here precisely because this job cannot write: a Pint minor that adds a
+      # fixer turns the build red, which is a visible prompt to run
+      # `composer format`, not a silent rewrite of the repo.
+      - name: Install Pint
+        run: composer global require "laravel/pint:^1.30" --no-interaction --no-progress
+
+      # Reads pint.json from the repo root. `laravel` is also Pint's current
+      # default, so this changes no formatting today — the file exists to make
+      # the preset survive a future change to that default.
+      #
+      # --test exits non-zero on any file that would be reformatted.
+      - name: Check styling
+        run: $(composer config --global home)/vendor/bin/pint --test

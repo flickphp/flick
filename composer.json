@@ -1,0 +1,55 @@
+{
+  "name": "flickphp/flick",
+  "description": "A stupidly-fast PHP form builder.",
+  "homepage": "https://github.com/flickphp/flick",
+  "license": "MIT",
+  "type": "library",
+  "keywords": [
+    "flick",
+    "form",
+    "php",
+    "validate",
+    "form builder",
+    "form library"
+  ],
+  "authors": [
+    {
+      "name": "Tim Gavin",
+      "homepage": "https://github.com/timgavin"
+    }
+  ],
+  "require": {
+    "php": "^8.3",
+    "php-di/php-di": "^7.1",
+    "ext-ctype": "*",
+    "ext-curl": "*",
+    "ext-fileinfo": "*",
+    "ext-openssl": "*"
+  },
+  "require-dev": {
+    "pestphp/pest": "^4.0|^5.0",
+    "laravel/pint": "^1.30",
+    "mockery/mockery": "^1.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "Flick\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Flick\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "scripts": {
+    "format": "vendor/bin/pint",
+    "test": "./vendor/bin/pest"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

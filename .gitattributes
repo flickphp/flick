@@ -1,0 +1,21 @@
+* text=auto
+
+.github export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+
+art export-ignore
+examples export-ignore
+composer.lock export-ignore
+phpunit.xml.dist export-ignore
+pint.json export-ignore
+tests export-ignore
+llms.txt export-ignore
+
+*.md diff=markdown
+*.php diff=php
+*.php linguist-language=PHP
+*.view.php linguist-language=PHP
+
+tests/* linguist-vendored
+vendor/* linguist-vendored

@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  push:
+    # `branches:` is load-bearing, not decoration. GitHub does not evaluate
+    # `paths:` for tag pushes ("Path filters are not evaluated for pushes of
+    # tags"), and the release workflow pushes a v* tag for every release --
+    # which re-ran this whole matrix against a commit main had already tested,
+    # and turned any runner-side flake in that redundant run into a red mark on
+    # the release. Naming branches and no tags keeps release tags out.
+    branches:
+      - main
+    paths:
+      - '**.php'
+      - '.github/workflows/run-tests.yml'
+      - 'phpunit.xml.dist'
+      - 'composer.json'
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        php: ['8.3', '8.4', '8.5']
+
+    name: Tests (PHP ${{ matrix.php }} on ${{ matrix.os }})
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: dom, curl, libxml, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, bcmath, soap, intl, gd, exif, iconv, imagick, fileinfo
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction
+
+      - name: Execute tests
+        run: vendor/bin/pest --ci

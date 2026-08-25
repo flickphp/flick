@@ -1,0 +1,322 @@
+# Flick
+
+> A stupidly-fast PHP form builder.
+
+## Philosophy
+
+Flick prioritizes developer speed and simplicity:
+- Easy to type - Short method names, minimal keystrokes
+- Easy to remember - Intuitive APIs, no hunting through docs
+- Seconds to production - Install and create forms immediately
+
+## Installation
+
+```shell
+composer require flickphp/flick
+```
+
+## Quick Start
+
+### Simplest Form (String Syntax)
+
+```php
+$form = new Flick\Flick();
+echo $form->create('Name, Email, Comments|textarea');
+```
+
+This generates a complete form with:
+- CSRF protection
+- Form wrapper and submit button
+- Field names auto-generated from labels (Name → name, Email → email, E-mail → e_mail)
+
+### With Validation
+
+```php
+$form->create('
+    Name[required, min:3],
+    Email[required, email],
+    Password[required, strongPassword],
+    Confirm Password[required, matches:password]
+');
+```
+
+### Processing Submissions
+
+```php
+if ($form->submitted()) {
+    $data = $form->request('
+        Name[required],
+        Email[required, email]
+    ');
+
+    if ($form->ok()) {
+        // Validation passed
+        echo $data['name'];
+        echo $data['email'];
+    }
+    // Errors auto-display on form re-render
+}
+```
+
+## Constructor Options
+
+```php
+$form = new Flick\Flick([
+    'id' => 'myForm',           // Form ID
+    'views' => 'bootstrap',     // CSS: flick, bootstrap, tailwind, bulma, foundation, materialize
+    'action' => '/submit',      // Form action URL
+    'csrf' => true,             // CSRF protection (default: true)
+    'session' => false,         // Persist values in session
+    'honeypot' => 'website',    // Spam protection field name
+    'trustedProxies' => ['10.0.0.0/8'], // Proxies whose forwarded headers are honored (IPs/CIDR/'*'; [] = none; unset = private/loopback peers)
+]);
+```
+
+## String Syntax Reference
+
+Format: Label|type[rules]{default}
+
+Examples:
+- Name                          → text input, name="name"
+- Email|email                   → email input
+- Bio|textarea                  → textarea
+- Country|select(countries)     → dropdown with prebuilt countries
+- Role|select([admin:Admin, editor:Editor]::Choose...)[required] → dropdown with placeholder
+- Newsletter|checkbox           → checkbox
+- Photo|file                    → file upload
+- Name{John}                    → text with default value "John"
+- Email[required, email]        → with validation rules
+
+## Field Element Methods
+
+All methods: methodName($name, $label = '', $value = '', $attributes = [])
+Exceptions: hidden($name, $value); datalist($name, $label, $value, $options, $attributes)
+
+Text inputs: text(), email(), password(), number(), tel(), url(), search(), color(), range()
+Date/time: date(), datetime(), time(), month(), week()
+Selection: select(), selectMultiple(), checkbox(), checkboxInline(), radio(), radioInline()
+Other: textarea(), file(), files(), hidden(), datalist()
+Structure: open(), close(), openMultipart(), fieldsetOpen(), fieldsetClose(), submit()
+
+## Validation Rules
+
+### Common Rules
+- required, r              Field must have value
+- email                    Valid email format
+- min:N, max:N            Character length limits
+- strongPassword          8+ chars, upper, lower, digit, special
+- strongPassword:N        Custom minimum length
+- confirmed               Must match {field}_confirmation
+- matches:field           Must match another field
+- in:a,b,c                Must be one of listed values
+- regex:/pattern/         Match regex pattern
+
+### Numeric Rules
+- int, numeric            Number validation
+- between:M,N             Value between M and N
+- greaterThan:N           Value > N
+- lessThan:N              Value < N
+
+### Date Rules
+- after:date              After date (supports: today, tomorrow, 2024-01-01)
+- before:date             Before date
+- afterOrEqual:date       After or equal to date
+
+### Format Rules
+- url                     Valid URL
+- phone                   Valid phone (10-16 digits)
+- creditCard              Valid credit card (Luhn)
+- uuid                    Valid UUID v4
+- ip, ipv4, ipv6          IP address
+
+### String Modifiers (Applied After Validation)
+Input is trimmed of surrounding whitespace BEFORE rules run (password and
+password_confirmation exempt); 'trim' => false in the config disables it.
+Modifiers below change only the returned value.
+
+- bcrypt, hash            Hash with bcrypt
+- slug                    Convert to URL slug
+- sanitizeChars           Escape HTML entities
+- stripTags               Remove HTML tags
+
+### Custom Error Messages
+
+```php
+$form->request('Email[required, email][required:Email is required, email:Invalid email]');
+```
+
+## Multistep Forms
+
+Define steps as an array; Flick handles navigation, per-step validation (each field's rules run before the step advances), a review page, and session state. Requires an active session.
+
+```php
+$steps = [
+    'Contact' => ['fields' => [
+        'name'  => ['label' => 'Name', 'rules' => ['required']],
+        'email' => ['type' => 'email', 'label' => 'Email', 'rules' => ['required', 'email']],
+    ]],
+    'Details' => ['fields' => [
+        'bio' => ['type' => 'textarea', 'label' => 'Bio'],
+    ]],
+];
+
+if ($form->multistepIsComplete()) {
+    $data = $form->multistepFormData(); // returns data and clears the ENTIRE Flick session
+    // process $data, then redirect or return — don't fall through to createMultistep()
+    return;
+}
+
+$form->createMultistep($steps);
+```
+
+Options (2nd arg to createMultistep): auto (bool, default true), nextText, reviewTitle, reviewText, submitText
+Helpers: multistepFormData($clear = true) — pass false to keep the session; multistepReviewData() — read without clearing; multistepCurrentStep($steps); multistepSteps($steps); multistepCompletedSteps(); multistepIsInReview(); multistepBreadcrumbs($steps); submitMultistep($text)
+
+## Pro Services
+
+Install: `composer require flickphp/pro` (requires a license and the Flick Pro repository entry in composer.json — see https://flickphp.com/pro for setup)
+
+Access services via magic property: `$form->serviceName`
+
+### SQL Service
+
+```php
+// CRUD
+$id = $form->sql->save('users', ['name' => 'John', 'email' => 'john@example.com']);
+$user = $form->sql->find('users', $id);
+$form->sql->delete('users', $id);
+
+// Query builder
+$users = $form->sql->table('users')
+    ->where('active', 1)
+    ->orderBy('created_at', 'DESC')
+    ->limit(10)
+    ->get();
+
+// Check uniqueness
+if (!$form->sql->validateUnique('users', 'email', $email)) {
+    $form->addError('email', 'Email taken');
+}
+```
+
+### Mail Service
+
+```php
+$form->mail->send('user@example.com', 'Subject', 'Body');
+
+// With template and data
+$form->mail->send($to, $subject, $plaintext, [
+    'data' => ['name' => 'John', 'message' => 'Welcome!']
+]);
+
+// Send form data as email
+$form->mail->sendFormData('admin@example.com', 'New Submission', $data);
+
+// Attachments
+$form->mail->attach('/path/file.pdf')->send($to, $subject, $body);
+```
+
+### Upload Service
+
+```php
+// Image with processing
+$file = $form->upload->image('photo', ['maxFileSize:5MB']);
+if ($file) {
+    echo $file->url;              // FileInfo (no conversions configured)
+    // With conversions configured, image() returns a FileCollection:
+    // echo $file->original->url;
+    // echo $file->thumbnail->url;
+}
+
+// Generic file
+$file = $form->upload->file('document', ['required']);
+```
+
+### Auth Service
+
+```php
+$form->auth->login($userId, $remember = false);
+$form->auth->logout();
+
+if ($form->auth->check()) {
+    $userId = $form->auth->id();
+}
+
+$hash = $form->auth->hash($password);
+$valid = $form->auth->verify($password, $hash);
+```
+
+### Validation Service (Client-Side)
+
+```php
+// Auto-generates JavaScript validation matching server rules
+echo $form->validation->scripts($form->getFields());
+```
+
+## Complete Examples
+
+### Contact Form
+
+```php
+$form = new Flick\Flick(['views' => 'tailwind']);
+
+if ($form->submitted()) {
+    $data = $form->request('Name[required], Email[required, email], Message[required, min:10]');
+
+    if ($form->ok()) {
+        $form->mail->sendFormData('admin@example.com', 'Contact Form', $data);
+        $form->successMessage('Thanks! We will reply soon.');
+    }
+}
+
+echo $form->create('Name, Email, Message|textarea');
+```
+
+### User Registration
+
+```php
+if ($form->submitted()) {
+    $data = $form->request('
+        Name[required],
+        Email[required, email],
+        Password[required, strongPassword, confirmed]
+    ');
+
+    if (!$form->sql->validateUnique('users', 'email', $data['email'])) {
+        $form->addError('email', 'Email already registered');
+    }
+
+    if ($form->ok()) {
+        $form->sql->save('users', [
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => password_hash($data['password'], PASSWORD_BCRYPT)
+        ]);
+        $form->successMessage('Account created!');
+    }
+}
+
+echo $form->create('Name, Email, Password|password, Confirm Password|password');
+```
+
+## Gotchas
+
+1. Always check $form->ok() after $form->request() - validation errors don't throw
+2. $form->request() both validates AND returns data - don't call twice
+3. Field names auto-generated from labels: "Full Name" → "full_name", "E-mail" → "e_mail" (spaces and hyphens both become underscores)
+4. CSRF is enabled by default - disable with 'csrf' => false if needed
+5. Services lazy-load - $form->mail only loads mail service when accessed
+6. String syntax pipes: Name|type not Name | type (no spaces around pipe)
+7. For file uploads, use $form->openMultipart() or 'enctype' => 'multipart/form-data'
+
+## Configuration
+
+- Config array passed to constructor
+- Pro services configured under 'services' key
+- CSS framework set via 'views' option
+- 'trim' => false disables pre-validation whitespace trimming
+
+## Resources
+
+- Documentation: https://flickphp.com
+- GitHub: https://github.com/flickphp/flick
