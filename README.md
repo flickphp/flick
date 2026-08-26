@@ -6,13 +6,13 @@
 
 <p align="center">
     <a href="https://packagist.org/packages/flickphp/flick">
-        <img src="https://poser.pugx.org/flickphp/flick/v?style=flat" alt="Latest Stable Version">
+        <img src="https://img.shields.io/packagist/v/flickphp/flick?style=flat" alt="Latest Stable Version">
     </a>
     <a href="https://packagist.org/packages/flickphp/flick">
-        <img src="https://poser.pugx.org/flickphp/flick/require/php?style=flat" alt="PHP Version">
+        <img src="https://img.shields.io/packagist/dependency-v/flickphp/flick/php?style=flat" alt="PHP Version">
     </a>
     <a href="https://packagist.org/packages/flickphp/flick">
-        <img src="https://poser.pugx.org/flickphp/flick/license?style=flat" alt="License">
+        <img src="https://img.shields.io/packagist/l/flickphp/flick?style=flat" alt="License">
     </a>
 </p>
 
