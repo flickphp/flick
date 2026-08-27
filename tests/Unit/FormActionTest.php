@@ -237,3 +237,22 @@ it('still drops the query string when no action is configured', function () {
 
     expect(actionAttribute($form->open()))->toBe('/contact.php');
 });
+
+it('does not let a configured action change redirect()', function () {
+    // `action` says where the form posts. redirect() with no argument means
+    // "back to the page that was submitted", which is a different question --
+    // and the multistep flow depends on it resolving to the request path.
+    $form = new Flick([
+        'request' => new ArrayRequest([
+            'post' => ['_id' => 'myForm'],
+            'server' => ['REQUEST_METHOD' => 'POST', 'REQUEST_URI' => '/signup'],
+        ]),
+        'session' => new ArraySession,
+        'echo' => false,
+        'csrf' => false,
+        'action' => '/somewhere-else',
+        'onRedirect' => fn ($response) => $response->getUrl(),
+    ]);
+
+    expect((string) $form->redirect())->toBe('/signup');
+});
