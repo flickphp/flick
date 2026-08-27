@@ -66,7 +66,7 @@ it('keeps languages per instance within one process', function () {
     $english->createAndValidate('Name[required]');
 
     expect($spanish->getErrors()['name'])->toBe('El campo name es obligatorio')
-        ->and($english->getErrors()['name'])->toBe('The name field is required');
+        ->and($english->getErrors()['name'])->toBe('name is required');
 });
 
 /*

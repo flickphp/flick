@@ -3,7 +3,7 @@
 // default error messages for validation rules
 
 return [
-    'accepted' => 'The :key field must be accepted',
+    'accepted' => ':key must be accepted',
     'after' => ':key must be after :match',
     'afterOrEqual' => ':key must be after or the same as :match',
     'alpha' => ':key may only contain letters',
@@ -13,7 +13,7 @@ return [
     'beforeOrEqual' => ':key must be before or the same as :match',
     'between' => ':key must be between :match1 and :match2',
     'boolean' => ':key must be true or false',
-    'confirmed' => 'The :key confirmation does not match',
+    'confirmed' => ':key confirmation does not match',
     'creditCard' => ':key must be a valid credit card number',
     'date' => ':match is not a valid date format (Y-m-d)',
     'digits' => ':key must be exactly :match digits',
@@ -45,10 +45,10 @@ return [
     'notRegex' => ':key can not be an exact match',
     'numeric' => ':key must be a number or a numeric string',
     'phone' => ':key must be a valid phone number',
-    'r' => 'The :key field is required',
+    'r' => ':key is required',
     'regex' => ':match does not match the required parameters',
-    'required' => 'The :key field is required',
-    'requiredWith' => 'The :key field is required when :match is present',
+    'required' => ':key is required',
+    'requiredWith' => ':key is required when :match is present',
     'single' => ':key must be a single value',
     'strongPassword' => ':key must be at least :match characters with uppercase, lowercase, number, and special character',
     'url' => ':key must be a valid URL',

@@ -147,7 +147,7 @@ it('returns the error alert markup when echo is off (§1.4)', function () {
 
     $form->request('Name[required]');
 
-    expect($form->errors())->toContain('The name field is required');
+    expect($form->errors())->toContain('name is required');
 });
 
 it('returns an empty string when there is nothing to report (§1.4)', function () {
