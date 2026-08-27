@@ -191,8 +191,19 @@ class Build
 
     public function open(string $action, string $method, array|string $attributes): string
     {
+        // '/' is what every caller passes when no action was given -- Flick::open()
+        // and openMultipart() default to it, and both the create() and form-file
+        // paths fall back to it -- so it means "unspecified" rather than "the site
+        // root", which is why it has always been replaced here.
+        //
+        // A configured action is the developer's own instruction and wins over the
+        // request path, including any query string it carries. The derived default
+        // still drops the query string: FormActionTest pins that, and carrying
+        // ?step= forward would stall createMultistep().
         if ($action == '/' || $action == '') {
-            $action = Support::requestPath($this->request);
+            $action = $this->flick->hasConfiguredAction()
+                ? (string) $this->flick->config('action')
+                : Support::requestPath($this->request);
         }
 
         // add the <form> tag

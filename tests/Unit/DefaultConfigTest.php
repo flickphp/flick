@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Flick\Flick;
+use Flick\Http\ArrayRequest;
+use Flick\Session\ArraySession;
 
 afterEach(function () {
     Flick::resetDefaultConfig();
@@ -54,4 +56,22 @@ it('is a no-op when no default is set', function () {
 
     expect($form->config('id'))->toBe('plain');
     expect(Flick::getDefaultConfig())->toBe([]);
+});
+
+it('honours an action published as a framework default', function () {
+    // The Laravel adapter bridges config/flick.php through setDefaultConfig(),
+    // which merges beneath the instance config before setApplicationConfig()
+    // runs -- so a framework-supplied action counts as configured.
+    Flick::setDefaultConfig(['action' => '/framework-route']);
+
+    $form = new Flick([
+        'request' => new ArrayRequest(['server' => ['REQUEST_URI' => '/contact']]),
+        'session' => new ArraySession,
+        'echo' => false,
+        'csrf' => false,
+    ]);
+
+    preg_match('/<form[^>]*\baction="([^"]*)"/', $form->open(), $matches);
+
+    expect($matches[1] ?? '')->toBe('/framework-route');
 });

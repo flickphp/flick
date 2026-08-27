@@ -199,3 +199,41 @@ it('does not treat an empty configured action as configured', function () {
 
     expect($form->hasConfiguredAction())->toBeFalse();
 });
+
+it('uses a configured action for open()', function () {
+    $form = formWithServer(['REQUEST_URI' => '/contact'], ['action' => '/submit']);
+
+    expect(actionAttribute($form->open()))->toBe('/submit');
+});
+
+it('uses a configured action for create()', function () {
+    $form = formWithServer(['REQUEST_URI' => '/contact'], ['action' => '/submit']);
+
+    expect(actionAttribute($form->create('Name, Email')))->toBe('/submit');
+});
+
+it('uses a configured action for openMultipart()', function () {
+    $form = formWithServer(['REQUEST_URI' => '/contact'], ['action' => '/submit']);
+
+    expect(actionAttribute($form->openMultipart()))->toBe('/submit');
+});
+
+it('lets an explicit argument beat a configured action', function () {
+    $form = formWithServer(['REQUEST_URI' => '/contact'], ['action' => '/submit']);
+
+    expect(actionAttribute($form->open('/elsewhere')))->toBe('/elsewhere');
+});
+
+it('keeps a query string the developer put in the configured action', function () {
+    // The default action drops the query string on purpose; one written by
+    // hand is the developer's own instruction and is passed through whole.
+    $form = formWithServer(['REQUEST_URI' => '/contact'], ['action' => '/submit?ref=email']);
+
+    expect(actionAttribute($form->open()))->toBe('/submit?ref=email');
+});
+
+it('still drops the query string when no action is configured', function () {
+    $form = formWithServer(['REQUEST_URI' => '/contact.php?ref=email']);
+
+    expect(actionAttribute($form->open()))->toBe('/contact.php');
+});
