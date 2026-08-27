@@ -16,24 +16,38 @@ class Build
     /*
      * The escaping boundary, stated once so it is not re-litigated.
      *
-     * Values and ids are ESCAPED. Request data reaches exactly three places in
-     * this class and all three are a field's value: the repopulation in
-     * buildFieldElementAttributes() and the two selected-option checks in
-     * buildSelectMenuOptions(). Ids are escaped because array checkboxes and
-     * radios derive theirs from the value.
+     * The line is drawn by RENDERING CONTEXT, not by who supplied the string.
+     *
+     * Values and ids are ESCAPED, always, whatever their source — a repopulated
+     * request value, a session value, or the $value argument the developer
+     * passed. Ids are escaped because array checkboxes and radios derive theirs
+     * from the value.
+     *
+     * The argument is escaped because "the developer passed it" does not mean
+     * "the developer wrote it". Pre-filling an edit form from the database
+     * hands stored user data straight to $value, which is the single most
+     * ordinary way to use these methods, and creating-forms.md tells the reader
+     * Flick escapes field values for them. This used to be gated on the value
+     * having come from request or session input, and that gap was a live XSS:
+     * $form->text('nickname', 'Nickname', $row->nickname) emitted the payload
+     * raw. Nothing legitimate is lost, because a value renders into an
+     * attribute or a textarea body, where markup can only break the tag.
      *
      * Labels are RAW. A field label, a submit button's text and a fieldset's
-     * label are authored by the developer building the form — they are method
-     * arguments, never request data. Leaving them raw is what lets
-     * '<i class="fa-search"></i> Search' work as button text and
-     * 'I agree to the <a href="/terms">Terms</a>' work as a checkbox label. A
-     * developer who builds a label out of user data escapes it themselves, the
-     * same as anywhere else in their own template.
+     * label are chrome the developer writes into their own template, and
+     * leaving them raw is what lets '<i class="fa-search"></i> Search' work as
+     * button text and 'I agree to the <a href="/terms">Terms</a>' work as a
+     * checkbox label. A developer who builds a label out of user data escapes
+     * it themselves; creating-forms.md says so explicitly.
      *
-     * <option> text is the exception, and stays ESCAPED: markup is inert inside
-     * an <option>, so raw HTML there can only corrupt the tag (a label containing
-     * '</option>' would break the menu) and can never render anything. That is a
-     * difference in rendering context, not a difference in who is trusted.
+     * <option> text is the exception among labels, and stays ESCAPED: markup is
+     * inert inside an <option>, so raw HTML there can only corrupt the tag (a
+     * label containing '</option>' would break the menu) and can never render
+     * anything.
+     *
+     * $fromUntrustedInput still exists, but it no longer decides escaping. Its
+     * one remaining job is further down: a developer's default must not tick a
+     * checkbox, so only a submitted value counts there.
      */
 
     /**
@@ -467,9 +481,11 @@ class Build
         // Checkbox and radio keep the option value they were handed - the
         // resolved value only decides whether they are checked. For every other
         // type the resolved value IS the field's value, and is HTML-encoded
-        // exactly once here when it came from request or session input.
+        // here whatever its source. Encoding used to be gated on
+        // $fromUntrustedInput; see the escaping boundary note above for why the
+        // developer's own argument is no safer than a repopulated one.
         if (! in_array($type, ['checkbox', 'radio'])) {
-            $data['value'] = $fromUntrustedInput && ! empty($resolvedValue)
+            $data['value'] = ! empty($resolvedValue)
                 ? $this->flick->sanitizeRequest($resolvedValue)
                 : $resolvedValue;
         }

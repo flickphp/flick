@@ -86,3 +86,56 @@ it('passes POST over GET to the validation delegate (#14)', function () {
 
     expect($captured['other'])->toBe('post-value');
 });
+
+// A value handed in as the $value argument is escaped too.
+//
+// The escaping used to be gated on the value having come from request or
+// session input, on the reasoning that a method argument is developer-authored
+// and therefore trusted. That holds inside Build, but not in an application:
+// pre-filling an edit form from the database passes stored user data as that
+// argument, and the docs promise "Flick escapes those for you".
+//
+// Labels are a separate case and stay raw by design — see the escaping
+// boundary note in Build's class docblock.
+
+it('escapes a value passed as the $value argument, not just a repopulated one', function () {
+    // no $_POST['nickname'], so the argument is what renders
+    $form = new Flick(['csrf' => false, 'echo' => false]);
+    $html = $form->text('nickname', 'Nickname', '"><script>alert(1)</script>');
+
+    expect($html)->not->toContain('<script>alert(1)</script>')
+        ->and($html)->toContain('value="&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"');
+});
+
+it('escapes a textarea value passed as the $value argument', function () {
+    $form = new Flick(['csrf' => false, 'echo' => false]);
+    $html = $form->textarea('bio', 'Bio', '"><script>alert(1)</script>');
+
+    expect($html)->not->toContain('<script>alert(1)</script>')
+        ->and($html)->toContain('&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;');
+});
+
+it('escapes an argument value and a repopulated value identically', function () {
+    // The two paths must not disagree; a developer cannot tell which one a
+    // given render used.
+    $form = new Flick(['csrf' => false, 'echo' => false]);
+    $fromArgument = $form->text('nickname', 'Nickname', 'Tom & "Jerry"');
+
+    $_POST['other'] = 'Tom & "Jerry"';
+    $form2 = new Flick(['csrf' => false, 'echo' => false]);
+    $fromPost = $form2->text('other', 'Nickname');
+
+    preg_match('/value="([^"]*)"/', $fromArgument, $a);
+    preg_match('/value="([^"]*)"/', $fromPost, $b);
+
+    expect($a[1])->toBe($b[1])
+        ->and($a[1])->toBe('Tom &amp; &quot;Jerry&quot;');
+});
+
+it('still lets a developer put html in a label', function () {
+    // The fix must not leak into labels, which are documented as raw.
+    $form = new Flick(['csrf' => false, 'echo' => false]);
+    $html = $form->checkbox('agree', 'I agree to the <a href="/terms">Terms</a>', 'yes');
+
+    expect($html)->toContain('<a href="/terms">Terms</a>');
+});
