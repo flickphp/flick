@@ -92,6 +92,19 @@ class Flick
     private bool $csrfFailureReported = false;
 
     /**
+     * Whether the developer (or a framework default) supplied an `action`,
+     * as opposed to it being filled in from the request.
+     *
+     * config('action') cannot answer this on its own: it is always populated,
+     * defaulting to the full request URI, so a consumer reading it has no way
+     * to tell an explicit '/contact' from the current page. Build::open()
+     * needs that distinction, because the default it applies is the request
+     * PATH -- query string dropped -- and honouring config('action')
+     * unconditionally would start carrying query strings into every action.
+     */
+    private bool $actionIsConfigured = false;
+
+    /**
      * The process-global exception handler is owned by the class, not by an
      * instance: every standalone `new Flick()` used to push its own copy onto
      * PHP's handler stack, so two forms on a page stacked two handlers. One
@@ -1091,6 +1104,16 @@ class Flick
     }
 
     /**
+     * Whether an `action` was supplied in config rather than derived from the
+     * request. Read by Build::open() to decide whether a form with no explicit
+     * action should use the configured value or fall back to the request path.
+     */
+    public function hasConfiguredAction(): bool
+    {
+        return $this->actionIsConfigured;
+    }
+
+    /**
      * Store the form field definition in session for later retrieval by request().
      */
     private function storeFormDefinition(array|string $fields): void
@@ -1909,6 +1932,10 @@ class Flick
         );
 
         $array = $config;
+
+        // Recorded before the default is filled in below, which is the only
+        // moment the two are still distinguishable.
+        $this->actionIsConfigured = isset($config['action']) && $config['action'] !== '';
 
         $array['action'] = $config['action'] ?? $this->request->uri() ?? '/';
         $array['assets'] = $config['assets'] ?? null;

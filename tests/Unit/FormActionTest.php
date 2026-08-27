@@ -173,3 +173,29 @@ it('keeps an explicit redirect target', function () {
 
     expect($form->redirect('/thank-you'))->toBe('/thank-you');
 });
+
+/*
+|--------------------------------------------------------------------------
+| Configured form action
+|--------------------------------------------------------------------------
+|
+| `action` is a documented config key and is already honoured by multistep
+| stepUrl() and by ServiceManager, but the form tag ignored it: Build::open()
+| filled an unspecified action from the request path without ever consulting
+| config. A documented key that silently does nothing.
+|
+*/
+
+it('knows when an action was configured', function () {
+    $configured = formWithServer(['REQUEST_URI' => '/contact'], ['action' => '/submit']);
+    $default = formWithServer(['REQUEST_URI' => '/contact']);
+
+    expect($configured->hasConfiguredAction())->toBeTrue()
+        ->and($default->hasConfiguredAction())->toBeFalse();
+});
+
+it('does not treat an empty configured action as configured', function () {
+    $form = formWithServer(['REQUEST_URI' => '/contact'], ['action' => '']);
+
+    expect($form->hasConfiguredAction())->toBeFalse();
+});
