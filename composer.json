@@ -44,7 +44,8 @@
   "config": {
     "allow-plugins": {
       "pestphp/pest-plugin": true
-    }
+    },
+    "notify-on-install": false
   },
   "scripts": {
     "format": "vendor/bin/pint",
