@@ -134,13 +134,25 @@
 }
 
 /* Error State for Inputs */
-.flick-input.has-error,
-.flick-input:invalid {
+.flick-input.has-error {
 	border-color: #dc2626;
 }
 
-.flick-input.has-error:focus,
-.flick-input:invalid:focus {
+.flick-input.has-error:focus {
+	border-color: #dc2626;
+	box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+/*
+ * Same look once the browser has seen the person get a field wrong.
+ * Kept in rules of their own: a browser that does not know :user-invalid
+ * drops the whole rule, and .has-error must survive that.
+ */
+.flick-input:user-invalid {
+	border-color: #dc2626;
+}
+
+.flick-input:user-invalid:focus {
 	border-color: #dc2626;
 	box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }

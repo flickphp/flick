@@ -279,4 +279,30 @@ describe('CSS File', function () {
         expect($content)->toContain('.flick-radio-group');
     });
 
+    // An empty required input matches :invalid on page load, so styling it
+    // paints every required field red before anyone has typed anything.
+    test('flick.css does not paint untouched fields as errors', function () {
+        $content = file_get_contents(__DIR__.'/../../resources/views/flick/flick.css');
+
+        expect($content)->not->toContain(':invalid')
+            ->and($content)->toContain('.flick-input:user-invalid');
+    });
+
+    // A browser that does not know :user-invalid drops the whole rule, so it
+    // can never share a selector list with .has-error.
+    test('flick.css keeps :user-invalid out of every selector list', function () {
+        $content = file_get_contents(__DIR__.'/../../resources/views/flick/flick.css');
+
+        preg_match_all('/([^{}]+)\{/', preg_replace('#/\*.*?\*/#s', '', $content), $rules);
+
+        $shared = array_filter(
+            $rules[1],
+            fn (string $selector) => str_contains($selector, ':user-invalid') && str_contains($selector, ','),
+        );
+
+        expect($shared)->toBeEmpty()
+            ->and($content)->toMatch('/^\.flick-input\.has-error \{/m')
+            ->and($content)->toMatch('/^\.flick-input\.has-error:focus \{/m');
+    });
+
 });
