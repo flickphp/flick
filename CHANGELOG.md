@@ -2,6 +2,18 @@
 
 All notable changes to `flick` will be documented in this file
 
+## v1.0.3 - 2026-10-10
+
+### Potentially Breaking Changes
+
+- When the `onSuccess` callback adds an error, the form now shows the error message and stays on the page. It used to show the success message.
+
+#### What's Changed
+
+- Fixed Tailwind fields not showing a red or green edge when invalid or valid.
+- Fixed Bulma select and file fields not showing the invalid colour after a failed validation.
+- Fixed Flick's built-in stylesheet showing required fields as errors before anything was typed.
+
 ## v1.0.2 - 2026-08-28
 
 ### Potentially Breaking Changes
