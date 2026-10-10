@@ -23,7 +23,7 @@ $packs = [
     'flick' => 'has-error',
     'foundation' => 'is-invalid-input',
     'materialize' => 'invalid',
-    'tailwind' => 'border-red-500',
+    'tailwind' => 'outline-red-500',
 ];
 
 $fields = [
@@ -50,6 +50,20 @@ function cleanField(string $pack, callable $render): string
     return $render($form);
 }
 
+/**
+ * The control's class attribute as whole class names. A substring match is
+ * not enough: the tailwind pack keeps `aria-invalid:outline-red-500` on a
+ * clean control, which contains the invalid class without being it.
+ *
+ * @return list<string>
+ */
+function controlClasses(string $html): array
+{
+    preg_match('/<(?:input|select|textarea)[^>]*class="([^"]*)"/', $html, $classes);
+
+    return preg_split('/\s+/', $classes[1] ?? '', -1, PREG_SPLIT_NO_EMPTY);
+}
+
 foreach ($packs as $pack => $invalidClass) {
     foreach ($fields as $field => $render) {
         it("marks a failed {$field} in the {$pack} pack for assistive tech", function () use ($pack, $invalidClass, $render) {
@@ -62,24 +76,58 @@ foreach ($packs as $pack => $invalidClass) {
                 ->and($html)->toContain('style="display:block"')
                 ->and($html)->not->toContain('@error');
 
-            preg_match('/<(?:input|select|textarea)[^>]*class="([^"]*)"/', $html, $classes);
-
-            expect($classes[1] ?? '')->toContain($invalidClass);
+            expect(controlClasses($html))->toContain($invalidClass);
         });
 
         it("does not mark a clean {$field} in the {$pack} pack as invalid", function () use ($pack, $invalidClass, $render) {
             $html = cleanField($pack, $render);
 
-            expect($html)->not->toContain('aria-invalid')
+            expect($html)->not->toContain('aria-invalid=')
                 ->and($html)->not->toContain('aria-describedby')
                 ->and($html)->toContain('style="display:none"')
                 ->and($html)->not->toContain('Email is required');
 
-            preg_match('/<(?:input|select|textarea)[^>]*class="([^"]*)"/', $html, $classes);
-
-            expect($classes[1] ?? '')->not->toContain($invalidClass);
+            expect(controlClasses($html))->not->toContain($invalidClass);
         });
     }
+}
+
+/*
+ * The tailwind pack draws text, textarea and select with a 1px outline and
+ * no border, so a border colour on them changes nothing a person can see.
+ * The state colour has to be an outline colour, and it hangs off
+ * aria-invalid because that is the one thing a PHP failure and Pro's script
+ * both set. The variant also outranks the pack's focus colour, so the edge
+ * stays red or green while the field has focus.
+ *
+ * Production change that fails these: putting a border colour back on a
+ * control that has no border, or dropping the aria-invalid variants.
+ */
+foreach (['text', 'textarea', 'select'] as $field) {
+    it("colours the outline a failed tailwind {$field} draws", function () use ($fields, $field) {
+        $classes = controlClasses(failedField('tailwind', $fields[$field]));
+
+        expect($classes)->toContain('outline-1')
+            ->and($classes)->toContain('aria-invalid:outline-red-500')
+            ->and($classes)->toContain('aria-[invalid=false]:outline-green-500')
+            ->and(array_values(array_filter($classes, fn (string $class): bool => str_contains($class, 'border-'))))->toBe([]);
+    });
+}
+
+/*
+ * A Tailwind build only generates the classes it can read out of the view
+ * files (guide/views.md has developers add this directory as a source), and
+ * it reads `outline-red-500@enderror` as one unknown class. Written that way
+ * the invalid class reached the page and had no CSS behind it.
+ *
+ * Production change that fails this: closing the gap before @enderror.
+ */
+foreach (['input', 'textarea', 'select', 'file', 'boolean', 'boolean-inline'] as $view) {
+    it("leaves the invalid class readable to a Tailwind build in the tailwind {$view} view", function () use ($view) {
+        $source = file_get_contents(dirname(__DIR__, 2)."/resources/views/tailwind/{$view}.view.php");
+
+        expect($source)->toMatch('/@error\s+outline-red-500\s+@enderror/');
+    });
 }
 
 it('points aria-describedby at the value-suffixed id on a radio', function () {

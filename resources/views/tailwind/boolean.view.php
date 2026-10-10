@@ -1,7 +1,7 @@
 <div class="mb-4">
 	<div class="flex items-start">
 		<div class="flex h-5 items-center">
-			<input type="{{ type }}" name="{{ name }}" id="{{ id }}" value="{{ value }}" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 {{ classes }}@error border-red-500@enderror" {{attributes}}>
+			<input type="{{ type }}" name="{{ name }}" id="{{ id }}" value="{{ value }}" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 {{ classes }}@error outline-red-500 @enderror" {{attributes}}>
 		</div>
 		@label
 		<div class="ml-3 text-sm">

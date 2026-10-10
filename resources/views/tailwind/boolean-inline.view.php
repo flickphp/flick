@@ -1,5 +1,5 @@
 <div class="inline-flex items-center mr-4">
-	<input type="{{ type }}" name="{{ name }}" id="{{ id }}" value="{{ value }}" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 {{ classes }}@error border-red-500@enderror" {{attributes}}>
+	<input type="{{ type }}" name="{{ name }}" id="{{ id }}" value="{{ value }}" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 {{ classes }}@error outline-red-500 @enderror" {{attributes}}>
 	@label
 	<label for="{{ id }}" class="ml-2 text-sm/6 font-medium text-gray-900">
 		{{ label }}
