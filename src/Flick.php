@@ -908,6 +908,10 @@ class Flick
      * form creation, validation, success/error messages, and optionally
      * hides the form after successful submission.
      *
+     * An error the $onSuccess callback adds to the error bag (a failed
+     * $form->sql->save() does) counts as a failed submission: the error
+     * message is shown instead and the form stays visible.
+     *
      * @param  array|string  $fields  Field definitions (string or array)
      * @param  array|string  $attributes  Form attributes (action, method, id, etc.)
      * @param  callable|null  $onSuccess  Optional callback, runs only when validation passes
@@ -943,6 +947,7 @@ class Flick
      * Unlike createAndValidate(), the return value is always the rendered output,
      * never the data — the validated data is delivered via the $onSuccess callback.
      * In echo=true mode the output is echoed and an empty string is returned.
+     * A callback that adds an error is handled as in createAndValidate().
      *
      * @param  array|string  $fields  Field definitions (string or array)
      * @param  array|string  $attributes  Form attributes (action, method, id, etc.)
@@ -993,10 +998,16 @@ class Flick
         if ($this->submitted()) {
             $data = $this->request($fields);
 
+            if ($this->ok() && $onSuccess !== null) {
+                $onSuccess($data);
+            }
+
+            // Checked again rather than nested under the first check: the
+            // callback is where the docs put the save, and a service reports
+            // a failed one by adding to the error bag. Its return value is
+            // deliberately not read — Throttle::limit() returns false for
+            // "proceed".
             if ($this->ok()) {
-                if ($onSuccess !== null) {
-                    $onSuccess($data);
-                }
                 $output .= $this->successMessage($successMessage);
                 if ($hideOnSuccess) {
                     return [$data, $output];
