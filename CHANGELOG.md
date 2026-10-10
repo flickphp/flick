@@ -2,6 +2,21 @@
 
 All notable changes to `flick` will be documented in this file
 
+## v1.1.1 - 2026-10-10
+
+### Potentially Breaking Changes
+
+- With `persistToSession` on, a saved file is now kept in the session with the form's other values. A later submit with no file chosen passes with the file the form already has.
+
+#### What's Changed
+
+- Fixed a file field in a multistep form losing its file. `multistepFormData()` now returns the saved file and the review page shows its name.
+- Going back to a multistep step with a file field no longer asks for the file again. The field shows the name of the file, and choosing another one replaces it.
+- `multistepReviewData()` now returns a file field as the name of the file.
+- Fixed the multistep review page printing "Array" for a checkbox group.
+- Fixed a multistep field keyed with `[]` coming back empty.
+- Added `UploadedFile` and `UploadedFiles` to `messages.php`, for the note shown under a file field.
+
 ## v1.1.0 - 2026-10-10
 
 ### Potentially Breaking Changes
