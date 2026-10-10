@@ -4,7 +4,7 @@
 		<?php foreach ($this->multistepReviewData() as $key => $value) { ?>
 			<tr>
 				<td class="px-3 py-2 text-sm font-medium text-gray-900"><?= htmlspecialchars(ucwords($key), ENT_QUOTES, 'UTF-8') ?></td>
-				<td class="px-3 py-2 text-sm text-gray-700"><?= htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8') ?></td>
+				<td class="px-3 py-2 text-sm text-gray-700"><?= htmlspecialchars(is_array($value) ? implode(', ', $value) : (string) $value, ENT_QUOTES, 'UTF-8') ?></td>
 			</tr>
 		<?php } ?>
 	</tbody>

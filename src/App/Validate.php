@@ -627,7 +627,7 @@ class Validate
 
             // validate
             if ($handler !== null) {
-                $return[$name] = $this->flick->upload->{$handler}($name, $rules, $messages);
+                $return[$name] = $this->upload($handler, $name, $rules, $messages);
             } else {
                 $return[$name] = $this->flick->validate->input(
                     $isMultiValue ? $name.'[]' : $name,
@@ -669,6 +669,124 @@ class Validate
         }
 
         return null;
+    }
+
+    /**
+     * Hand a file field to the upload service, and keep what it returns in
+     * the session when field values are persisted there.
+     *
+     * Text values reach the session in input(), which a file field never
+     * goes through. So a multistep step saved its file and dropped the
+     * result: the finished form had no file in its data, and coming back to
+     * the step asked for one again.
+     *
+     * A field that already holds a file and is submitted without a new one
+     * keeps the one it has, and the service is not called. Only a result is
+     * stored: null is the service refusing a file, or having none to take,
+     * and neither replaces a file that was saved.
+     *
+     * @internal public so Build's form-array parser saves the same way; not
+     * part of the developer API
+     */
+    public function upload(string $handler, string $name, array $rules, array $messages): mixed
+    {
+        $persisting = $this->flick->persistingToSession();
+
+        if ($persisting && ! $this->request->hasFile($name)) {
+            $kept = $this->keptUpload($name);
+
+            if ($kept !== null) {
+                return $kept;
+            }
+        }
+
+        $result = $this->flick->upload->{$handler}($name, $rules, $messages);
+
+        if ($persisting && $result !== null) {
+            $this->flick->session->setValue($name, $result);
+        }
+
+        return $result;
+    }
+
+    /**
+     * The saved file a field already holds in the session, or null.
+     *
+     * @internal public so Build can say so beside the field; not part of the
+     * developer API
+     */
+    public function keptUpload(string $name): object|array|null
+    {
+        if (! $this->flick->persistingToSession() || ! $this->flick->hasSessionValue($name)) {
+            return null;
+        }
+
+        $value = self::restoredUpload($this->flick->getSessionValue($name));
+
+        return self::uploadedFileNames($value) === null ? null : $value;
+    }
+
+    /**
+     * A session value with any saved file in it readable again.
+     *
+     * PHP rebuilds the session's objects when the session starts. A site
+     * that starts its own session before loading Composer has no class to
+     * rebuild a saved file with, and gets a placeholder whose properties
+     * cannot be read: the review row came out blank and the form's data held
+     * an object nothing could use. By the time Flick reads the value the
+     * class can be loaded, and a second pass through serialize() gives the
+     * real object back.
+     *
+     * Only an object PHP already took out of the session is passed through
+     * unserialize() here. Request input reaches the session as strings and
+     * arrays of strings, never objects, so no submitted value arrives here.
+     *
+     * @internal public so Flick's multistep data reads the session the same
+     * way; not part of the developer API
+     */
+    public static function restoredUpload(mixed $value): mixed
+    {
+        foreach (is_array($value) ? $value : [$value] as $file) {
+            if ($file instanceof \__PHP_Incomplete_Class) {
+                return unserialize(serialize($value));
+            }
+        }
+
+        return $value;
+    }
+
+    /**
+     * The name each saved file was uploaded under, or null when the value is
+     * not what the upload service returns.
+     *
+     * That is an object, or a list of them for a field that takes several
+     * files. A file field validated as text (no upload service) leaves a
+     * string under the same session key, and a checkbox group leaves a list
+     * of strings; neither is a saved file.
+     *
+     * With UPLOAD_FLAGS, the other piece of the service's vocabulary core
+     * carries: a saved file has `originalFilename` and `name`, and one saved
+     * with conversions comes back as a collection whose main file is
+     * `original`.
+     *
+     * @internal public so Flick's review data and Build's field note read a
+     * saved file the same way; not part of the developer API
+     *
+     * @return list<string>|null
+     */
+    public static function uploadedFileNames(mixed $value): ?array
+    {
+        $files = is_array($value) ? $value : [$value];
+
+        if ($files === [] || array_filter($files, 'is_object') !== $files) {
+            return null;
+        }
+
+        return array_values(array_map(static function (object $file): string {
+            $file = $file->original ?? $file;
+
+            return (string) ($file->originalFilename ?? $file->name ?? '');
+        }, $files));
     }
 
     /**

@@ -209,19 +209,76 @@ class Build
     {
         $spec = self::FILE_TYPES[$type];
 
+        // a file the field already holds, from an earlier pass through a
+        // multistep step (see Validate::upload())
+        $kept = $this->flick->validate->keptUpload(rtrim(is_array($name) ? ($name['name'] ?? '') : $name, '[]'));
+
         // an element array carries its own attributes, and
         // buildFieldElementAttributes() reads them from there rather than
         // from the $attributes argument
         if (is_array($name)) {
             $key = isset($name['attr']) ? 'attr' : 'attributes';
-            $name[$key] = self::fileFieldAttributes($spec, $name[$key] ?? []);
+            $name[$key] = $this->keptFileAttributes(self::fileFieldAttributes($spec, $name[$key] ?? []), $kept);
             $name['name'] = self::fileFieldName($spec, $name['name'] ?? '');
         } else {
-            $attributes = self::fileFieldAttributes($spec, $attributes);
+            $attributes = $this->keptFileAttributes(self::fileFieldAttributes($spec, $attributes), $kept);
             $name = self::fileFieldName($spec, $name);
         }
 
-        return $this->input('file', $name, $label, $value, $attributes);
+        $data = $this->buildFieldElementAttributes('file', $name, $label, $value, $attributes);
+
+        // the help text now carries a visitor's file name; cached, that is
+        // one file per name and nothing ever clears them
+        if ($kept !== null) {
+            $data['cacheable'] = false;
+        }
+
+        return $this->support->return(View::make($data, $this->flick)->render());
+    }
+
+    /**
+     * A file field that already holds a file says so, and stops asking.
+     *
+     * The name of the file goes in the field's help text, ahead of the
+     * developer's own. `required` comes off the tag and out of the rules the
+     * page records for the browser validator: either one would stop the
+     * visitor leaving the field empty, and empty is how they keep the file.
+     * The server still has the rule, and Validate::upload() answers it.
+     */
+    private function keptFileAttributes(array $attributes, object|array|null $kept): array
+    {
+        if ($kept === null) {
+            return $attributes;
+        }
+
+        // the name is the visitor's, and help text is printed as written
+        $names = array_map(
+            static fn (string $name): string => htmlspecialchars($name, ENT_QUOTES, 'UTF-8'),
+            Validate::uploadedFileNames($kept)
+        );
+
+        $note = count($names) === 1
+            ? $this->support->message('UploadedFile', ['file' => $names[0]])
+            : $this->support->message('UploadedFiles', ['files' => implode(', ', $names)]);
+
+        $attributes['help'] = trim($note.' '.($attributes['help'] ?? ''));
+
+        unset($attributes['required']);
+
+        if (isset($attributes['rules'])) {
+            $rules = array_filter(
+                $this->flick->validate->convertUploadRulesToArray($attributes['rules']),
+                static fn (mixed $rule, int|string $key): bool => ! in_array($rule, ['required', 'r'], true)
+                    && ! in_array($key, ['required', 'r'], true),
+                ARRAY_FILTER_USE_BOTH
+            );
+
+            $attributes['rules'] = array_is_list($attributes['rules']) || is_string($attributes['rules'])
+                ? array_values($rules)
+                : $rules;
+        }
+
+        return $attributes;
     }
 
     private static function fileFieldAttributes(array $spec, array|string $attributes): array
@@ -550,8 +607,10 @@ class Build
 
         // Resolve the field's value once, from one ordered source list.
         // 'boolean-group-label' is a pseudo-type for a group's label; it has no
-        // submitted value of its own.
-        [$resolvedValue, $fromUntrustedInput] = $type === 'boolean-group-label'
+        // submitted value of its own. Nor has a file input one to repopulate,
+        // and what the session holds under its name is the saved file, which
+        // must not travel into the field registry the page prints.
+        [$resolvedValue, $fromUntrustedInput] = in_array($type, ['boolean-group-label', 'file'], true)
             ? [$value, false]
             : $this->resolveFieldValue($key, $value);
 
@@ -995,7 +1054,8 @@ class Build
         $handler = $this->flick->validate->uploadHandlerFor($type, $fileField);
 
         if ($handler !== null) {
-            $return[$name] = $this->flick->upload->{$handler}(
+            $return[$name] = $this->flick->validate->upload(
+                $handler,
                 $fileField,
                 $this->flick->validate->convertUploadRulesToArray($rules),
                 $messages

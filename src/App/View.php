@@ -67,8 +67,12 @@ class View
         $view = $this->flick->views->read($this->templatePath);
 
         // only cache value-independent static markup: a per-field value would
-        // produce one cache file per value with no eviction, so skip caching then
-        $cacheable = $this->cacheViews && empty($this->attributes['value']);
+        // produce one cache file per value with no eviction, so skip caching
+        // then. A builder that put a visitor's text somewhere else in the
+        // markup says so with 'cacheable'.
+        $cacheable = $this->cacheViews
+            && empty($this->attributes['value'])
+            && ($this->attributes['cacheable'] ?? true);
 
         if ($cacheable) {
             // key on the template content too, so editing a .view.php template

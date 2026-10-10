@@ -54,4 +54,6 @@ return [
     'UploadFileTooLarge' => 'File size (:size) exceeds maximum allowed size (:max).',
     'UploadInvalidFileType' => 'invalid file type.',
     'UploadUnexpectedFileType' => 'Invalid file type. Expected: :expected, got: :actual',
+    'UploadedFile' => 'Uploaded: :file. Choose a file to replace it.',
+    'UploadedFiles' => 'Uploaded: :files. Choose files to replace them.',
 ];

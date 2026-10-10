@@ -175,6 +175,7 @@ $form->createMultistep($steps);
 
 Options (2nd arg to createMultistep): auto (bool, default true), nextText, reviewTitle, reviewText, submitText
 Helpers: multistepFormData($clear = true) — pass false to keep the session; multistepReviewData() — read without clearing; multistepCurrentStep($steps); multistepSteps($steps); multistepCompletedSteps(); multistepIsInReview(); multistepBreadcrumbs($steps); submitMultistep($text)
+File fields in a step ('type' => 'image', 'pdf', 'file' or a plural; needs the Upload service): multistepFormData() holds the saved file, multistepReviewData() holds its name for a review page, and a return visit to the step keeps the file unless another is chosen
 
 ## Pro Services
 

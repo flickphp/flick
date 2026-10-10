@@ -1537,7 +1537,7 @@ class Flick
      */
     public function multistepFormData(bool $clear = true): array
     {
-        $return = $this->multistepReviewData();
+        $return = $this->multistepStoredData();
 
         if ($clear) {
             $this->destroySession(false);
@@ -1611,16 +1611,41 @@ class Flick
     }
 
     /**
-     * Get the submitted form data from a multistep form.
+     * Get the submitted form data from a multistep form, as a review page
+     * prints it.
+     *
+     * A saved file comes back as the name it was uploaded under, and a field
+     * that took several files as a list of those names. The file itself is in
+     * multistepFormData().
      */
     public function multistepReviewData(): array
+    {
+        return array_map(static function (mixed $value): mixed {
+            $names = Validate::uploadedFileNames($value);
+
+            if ($names === null) {
+                return $value;
+            }
+
+            return is_array($value) ? $names : $names[0];
+        }, $this->multistepStoredData());
+    }
+
+    /**
+     * Each field's value as the session holds it, keyed by field name.
+     */
+    private function multistepStoredData(): array
     {
         $sessionValues = [];
 
         $fields = $this->multistepList('formFields');
 
         foreach ($fields as $key) {
-            $sessionValues[$key] = $this->getSessionValue($key);
+            // a field keyed 'colors[]' is stored under 'colors', the name it
+            // posts as; read by the key as written, its value was always null
+            $stored = str_ends_with($key, '[]') ? substr($key, 0, -2) : $key;
+
+            $sessionValues[$key] = Validate::restoredUpload($this->getSessionValue($stored));
         }
 
         return $sessionValues;
