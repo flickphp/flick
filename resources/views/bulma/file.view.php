@@ -1,5 +1,5 @@
 <div class="field">
-	<div class="file">
+	<div class="file@error is-danger@enderror">
 		<label for="{{ id }}" class="file-label">
 			<input type="file" name="{{ name }}" id="{{ id }}" class="file-input {{ classes }}@error is-danger@enderror" {{attributes}}>
 			<span class="file-cta">

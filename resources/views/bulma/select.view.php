@@ -6,7 +6,7 @@
     @endlabel
 
     <div class="control">
-        <div class="select @attributes('multiple') is-multiple @endattributes">
+        <div class="select @attributes('multiple') is-multiple @endattributes@error is-danger@enderror">
             <select name="{{ name }}" id="{{ id }}" class="{{ classes }}@error is-danger@enderror" {{attributes}}>
                 {{ options }}
             </select>
