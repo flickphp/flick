@@ -2,6 +2,25 @@
 
 All notable changes to `flick` will be documented in this file
 
+## v1.1.0 - 2026-10-10
+
+### Potentially Breaking Changes
+
+- Without the Upload service, a validated form with a file field now throws when a file is submitted. The form used to post only the file's name.
+- With the Upload service installed, an empty `file` field in a validated form returns `null`. It used to return an empty string.
+
+#### What's Changed
+
+- Added `image`, `images`, `pdf` and `pdfs` field types to the string and array syntax, with field methods of the same names.
+- `createAndValidate()` and `renderValidated()` now send a file field to the Upload service method of the same name, rules included.
+- A form with a file field adds its own multipart `enctype`.
+- Fixed upload rules with a comma list, such as `mime:image/jpeg,image/png`, being cut off after the first item in a form string.
+- Fixed an optional file field with an upload rule failing validation when left empty.
+- Fixed `Photos|files` in a form string throwing a "view file was not found" error.
+- Fixed a file field in a form array throwing on every submit when the Upload service is not installed.
+- Fixed `'multipart' => false` still adding the `enctype`.
+- Fixed `files()` throwing a TypeError when its attributes were a string.
+
 ## v1.0.3 - 2026-10-10
 
 ### Potentially Breaking Changes
