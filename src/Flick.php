@@ -555,7 +555,7 @@ class Flick
      */
     public function file(array|string $name, string $label = '', string $value = '', array|string $attributes = []): string
     {
-        return $this->build->input('file', $name, $label, $value, $attributes);
+        return $this->build->fileInput('file', $name, $label, $value, $attributes);
     }
 
     /**
@@ -563,20 +563,23 @@ class Flick
      */
     public function files(array|string $name, string $label = '', string $value = '', array|string $attributes = []): string
     {
-        $attributes['multiple'] = true;
+        return $this->build->fileInput('files', $name, $label, $value, $attributes);
+    }
 
-        // append [] like selectMultiple() does: without it PHP keeps only the
-        // last file of a multi-file selection in $_FILES
-        if (is_array($name)) {
-            $nameKey = $name['name'] ?? '';
-            if (! str_ends_with($nameKey, ']')) {
-                $name['name'] = $nameKey.'[]';
-            }
-        } elseif (! str_ends_with($name, ']')) {
-            $name .= '[]';
-        }
+    /**
+     * Create a file element for an image.
+     */
+    public function image(array|string $name, string $label = '', string $value = '', array|string $attributes = []): string
+    {
+        return $this->build->fileInput('image', $name, $label, $value, $attributes);
+    }
 
-        return $this->build->input('file', $name, $label, $value, $attributes);
+    /**
+     * Create a file element which allows multiple images to be selected.
+     */
+    public function images(array|string $name, string $label = '', string $value = '', array|string $attributes = []): string
+    {
+        return $this->build->fileInput('images', $name, $label, $value, $attributes);
     }
 
     /**
@@ -625,6 +628,22 @@ class Flick
     public function password(array|string $name, string $label = '', string $value = '', array|string $attributes = []): string
     {
         return $this->build->input('password', $name, $label, $value, $attributes);
+    }
+
+    /**
+     * Create a file element for a PDF.
+     */
+    public function pdf(array|string $name, string $label = '', string $value = '', array|string $attributes = []): string
+    {
+        return $this->build->fileInput('pdf', $name, $label, $value, $attributes);
+    }
+
+    /**
+     * Create a file element which allows multiple PDFs to be selected.
+     */
+    public function pdfs(array|string $name, string $label = '', string $value = '', array|string $attributes = []): string
+    {
+        return $this->build->fileInput('pdfs', $name, $label, $value, $attributes);
     }
 
     /**
@@ -802,7 +821,7 @@ class Flick
      */
     public function openMultipart(string $action = '/', string $method = 'POST', array|string $attributes = []): string
     {
-        return $this->build->open($action, $method, $this->withMultipart($attributes));
+        return $this->build->open($action, $method, Build::withMultipart($attributes));
     }
 
     /**
@@ -1027,22 +1046,7 @@ class Flick
      */
     public function createMultipart(array|string $fields, array|string $attributes = []): string
     {
-        return $this->create($fields, $this->withMultipart($attributes));
-    }
-
-    /**
-     * Force the multipart flag onto a set of form attributes, whichever shape
-     * the caller passed them in ('string' is Build's raw-attribute passthrough).
-     */
-    private function withMultipart(array|string $attributes): array
-    {
-        if (is_string($attributes)) {
-            $attributes = $attributes === '' ? [] : ['string' => $attributes];
-        }
-
-        $attributes['multipart'] = true;
-
-        return $attributes;
+        return $this->create($fields, Build::withMultipart($attributes));
     }
 
     /**

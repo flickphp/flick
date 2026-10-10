@@ -51,6 +51,29 @@ class Build
      */
 
     /**
+     * The file field types, as a form definition or a field method names them.
+     *
+     * 'handler' is the upload service method a submission goes to, so the
+     * names here are that service's own. 'accept' is a hint for the browser's
+     * file picker and nothing more: the handler decides what is accepted.
+     *
+     * A plural type takes several files. The service has no plural methods -
+     * each handler takes one file or many - which is the pairing files() and
+     * $form->upload->file() already had.
+     *
+     * @internal public so Validate routes a submitted field by the same table
+     * the renderer reads; not part of the developer API
+     */
+    public const FILE_TYPES = [
+        'file' => ['handler' => 'file', 'multiple' => false, 'accept' => null],
+        'files' => ['handler' => 'file', 'multiple' => true, 'accept' => null],
+        'image' => ['handler' => 'image', 'multiple' => false, 'accept' => 'image/*'],
+        'images' => ['handler' => 'image', 'multiple' => true, 'accept' => 'image/*'],
+        'pdf' => ['handler' => 'pdf', 'multiple' => false, 'accept' => 'application/pdf'],
+        'pdfs' => ['handler' => 'pdf', 'multiple' => true, 'accept' => 'application/pdf'],
+    ];
+
+    /**
      * HTTP request adapter for accessing POST, GET, FILES, etc.
      *
      * A RequestInterface since the legacy App\Request shim (a single input()
@@ -177,6 +200,56 @@ class Build
         return $this->support->return(View::make($data, $this->flick)->render());
     }
 
+    /**
+     * Render one of the file field types (see FILE_TYPES). They share the
+     * file view; the type decides whether the field takes several files and
+     * which accept hint it carries.
+     */
+    public function fileInput(string $type, array|string $name, string $label, string $value, array|string $attributes): string
+    {
+        $spec = self::FILE_TYPES[$type];
+
+        // an element array carries its own attributes, and
+        // buildFieldElementAttributes() reads them from there rather than
+        // from the $attributes argument
+        if (is_array($name)) {
+            $key = isset($name['attr']) ? 'attr' : 'attributes';
+            $name[$key] = self::fileFieldAttributes($spec, $name[$key] ?? []);
+            $name['name'] = self::fileFieldName($spec, $name['name'] ?? '');
+        } else {
+            $attributes = self::fileFieldAttributes($spec, $attributes);
+            $name = self::fileFieldName($spec, $name);
+        }
+
+        return $this->input('file', $name, $label, $value, $attributes);
+    }
+
+    private static function fileFieldAttributes(array $spec, array|string $attributes): array
+    {
+        $attributes = self::attributesToArray($attributes);
+
+        if ($spec['multiple']) {
+            $attributes['multiple'] = true;
+        }
+
+        // the developer's own accept wins, wherever they wrote it
+        $declared = isset($attributes['accept'])
+            || stripos((string) ($attributes['string'] ?? ''), 'accept=') !== false;
+
+        if ($spec['accept'] !== null && ! $declared) {
+            $attributes['accept'] = $spec['accept'];
+        }
+
+        return $attributes;
+    }
+
+    // several files have to post as name[]: without it PHP keeps only the last
+    // file of the selection in $_FILES
+    private static function fileFieldName(array $spec, string $name): string
+    {
+        return $spec['multiple'] && ! str_ends_with($name, ']') ? $name.'[]' : $name;
+    }
+
     public function fieldsetClose(): string
     {
         return $this->support->return('</fieldset>'.PHP_EOL);
@@ -245,7 +318,11 @@ class Build
                         if ($key == 'string') {
                             $return .= ' '.$value;
                         } elseif ($key == 'multipart') {
-                            $return .= ' enctype="multipart/form-data"';
+                            // a flag, like the boolean attributes below: only
+                            // a true value asks for the enctype
+                            if ($value) {
+                                $return .= ' enctype="multipart/form-data"';
+                            }
                         } elseif (is_bool($value)) {
                             if ($value === true) {
                                 $return .= ' '.$key;
@@ -659,6 +736,12 @@ class Build
 
         $elements = array_filter(array_map([$this, 'parseFormElement'], $result));
 
+        // a file field cannot post without the multipart enctype, so the form
+        // takes it from the fields instead of waiting to be told
+        if (array_intersect_key(self::FILE_TYPES, array_flip(array_column($elements, 'type'))) !== []) {
+            $options = self::withMultipart($options);
+        }
+
         $return = $this->open($options['action'], $options['method'], $options);
 
         foreach ($elements as $element) {
@@ -681,6 +764,8 @@ class Build
                 }
             } elseif ($element['type'] == 'textarea') {
                 $return .= $this->textarea($element, '', '', []);
+            } elseif (isset(self::FILE_TYPES[$type])) {
+                $return .= $this->fileInput($type, $element, '', '', []);
             } else {
                 $return .= $this->input($element['type'], $element, '', '', []);
             }
@@ -711,6 +796,10 @@ class Build
         $action = $array['action'] ?? '/';
         $method = $array['method'] ?? 'POST';
         $attributes = $array['attributes'] ?? [];
+
+        if (self::arrayFormHoldsFileField($array['fields'])) {
+            $attributes = self::withMultipart($attributes);
+        }
 
         $return = $this->open($action, $method, $attributes);
 
@@ -901,12 +990,16 @@ class Build
         $messages = $element['messages'] ?? [];
         $return = [];
 
-        if (in_array($type, ['file', 'files'])) {
-            if (! isset($this->flick->upload)) {
-                throw FlickException::serviceIsNotAvailable('Upload');
-            }
+        // the upload service reads the field by its bare name
+        $fileField = rtrim($name, '[]');
+        $handler = $this->flick->validate->uploadHandlerFor($type, $fileField);
 
-            $return[$name] = $this->flick->upload->file(rtrim($name, '[]'), $rules, $messages);
+        if ($handler !== null) {
+            $return[$name] = $this->flick->upload->{$handler}(
+                $fileField,
+                $this->flick->validate->convertUploadRulesToArray($rules),
+                $messages
+            );
         } else {
             // a selectMultiple (renders as name[]) and a checkbox group submit
             // arrays; hand the [] marker to the validator so their rules apply
@@ -924,6 +1017,48 @@ class Build
     }
 
     // FORM BUILDER HELPERS ---------------------------------------------------
+
+    /**
+     * Flag a set of form attributes as multipart, whichever shape the caller
+     * passed them in ('string' is open()'s raw-attribute passthrough). An
+     * enctype the developer wrote themselves is left to stand alone.
+     *
+     * @internal public so Flick's openMultipart() and createMultipart() share
+     * it; not part of the developer API
+     */
+    public static function withMultipart(array|string $attributes): array
+    {
+        if (is_string($attributes)) {
+            $attributes = $attributes === '' ? [] : ['string' => $attributes];
+        }
+
+        $declared = isset($attributes['enctype'])
+            || stripos((string) ($attributes['string'] ?? ''), 'enctype=') !== false;
+
+        if (! $declared) {
+            $attributes['multipart'] = true;
+        }
+
+        return $attributes;
+    }
+
+    // does a form array declare a file field, at the top level or in a fieldset?
+    private static function arrayFormHoldsFileField(array $fields): bool
+    {
+        foreach ($fields as $key => $element) {
+            $children = is_string($key) && str_starts_with($key, 'fieldset')
+                ? ($element['fields'] ?? [])
+                : [$element];
+
+            foreach ($children as $child) {
+                if (isset(self::FILE_TYPES[$child['type'] ?? ''])) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
 
     /**
      * Merge create()'s second argument over a form definition array.
@@ -1099,7 +1234,16 @@ class Build
         [$remaining, $blocks] = $this->flick->validate->splitDefinitionBlocks($string);
 
         if (isset($blocks[0])) {
-            foreach ($this->flick->validate->convertRulesToArray($blocks[0]) as $rule) {
+            // A file field's rules are the upload service's, which the
+            // validator splits with their own grammar on the way back in. The
+            // {default} goes first so a pipe inside it is not read as the type.
+            $type = trim(explode('|', preg_replace('/\{[^}]*}/', '', $remaining), 2)[1] ?? '');
+
+            $rules = isset(self::FILE_TYPES[$type])
+                ? $this->flick->validate->convertUploadRulesToArray($blocks[0])
+                : $this->flick->validate->convertRulesToArray($blocks[0]);
+
+            foreach ($rules as $rule) {
                 if ($rule === '') {
                     continue;
                 }

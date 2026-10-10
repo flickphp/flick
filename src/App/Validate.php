@@ -614,14 +614,20 @@ class Validate
         $parts = $this->prepareAFormStringForValidation($string);
 
         foreach ($parts as $part) {
-            [$name, $isMultiValue, $rules, $messages] = $this->parseValidationPart($part);
+            [$name, $isMultiValue, $rules, $messages, $type] = $this->parseValidationPart($part);
+
+            // a field with no file type is still treated as a file field when
+            // a file arrives under its name, which is all this did before the
+            // types existed
+            if (! isset(Build::FILE_TYPES[$type]) && $this->request->hasFile($name)) {
+                $type = 'file';
+            }
+
+            $handler = $this->uploadHandlerFor($type, $name);
 
             // validate
-            if ($this->request->hasFile($name)) {
-                if (! isset($this->flick->upload)) {
-                    throw FlickException::serviceIsNotAvailable('Upload');
-                }
-                $return[$name] = $this->flick->upload->file($name, $rules, $messages);
+            if ($handler !== null) {
+                $return[$name] = $this->flick->upload->{$handler}($name, $rules, $messages);
             } else {
                 $return[$name] = $this->flick->validate->input(
                     $isMultiValue ? $name.'[]' : $name,
@@ -635,8 +641,96 @@ class Validate
     }
 
     /**
+     * The upload service method a submitted field of this type goes to, or
+     * null when the text validator should take it.
+     *
+     * A field typed as a file goes by its type, whether or not a file
+     * arrived: its rules are the upload service's, and the text validator
+     * rejected them as unknown the moment an optional file field was left
+     * empty.
+     *
+     * Without the upload service a file field is validated as text, so its
+     * `required` still reports. Once a file actually arrives nothing can take
+     * it, and that is the case that throws.
+     *
+     * @internal public so Build's form-array parser routes the same way; not
+     * part of the developer API
+     */
+    public function uploadHandlerFor(string $type, string $name): ?string
+    {
+        $handler = Build::FILE_TYPES[$type]['handler'] ?? null;
+
+        if ($handler === null || isset($this->flick->upload)) {
+            return $handler;
+        }
+
+        if ($this->request->hasFile($name)) {
+            throw FlickException::serviceIsNotAvailable('Upload');
+        }
+
+        return null;
+    }
+
+    /**
+     * The upload service's rules that take no argument. 'r' is core's alias
+     * for required, which a file field accepts like any other.
+     *
+     * The one piece of the service's vocabulary core has to carry: a rule
+     * with an argument is recognised by its colon, a flag only by its name.
+     * A flag Pro adds later has to be added here too, or it is read as an
+     * argument when it follows a rule that takes one ('width:400,newflag').
+     */
+    private const UPLOAD_FLAGS = ['grayscale', 'invert', 'preserveOriginal', 'r', 'required', 'sepia'];
+
+    /**
+     * Split a file field's rules into a list of rule strings.
+     *
+     * The upload service's rules are not core's, and several take a comma
+     * list ('mime:image/png,image/webp', 'conversions:thumb,medium',
+     * 'name:hash,16'). convertRulesToArray() keeps a comma attached only for
+     * the core rules it knows take one, so it cut these apart and the handler
+     * saw the first item alone.
+     *
+     * A segment opens a new rule when it reads as one: a word followed by a
+     * colon, or one of the service's flags. Anything else is a further
+     * argument of the rule before it, provided that rule takes arguments.
+     *
+     * @internal public so Build's parsers share this splitter; not part of the
+     * developer API
+     */
+    public function convertUploadRulesToArray(string|array $rules): array
+    {
+        if (! is_string($rules)) {
+            return $rules;
+        }
+
+        $result = [];
+
+        foreach (array_map('trim', explode(',', $rules)) as $segment) {
+            if ($segment === '') {
+                continue;
+            }
+
+            $lastIndex = count($result) - 1;
+
+            $opensRule = $lastIndex < 0
+                || ! str_contains($result[$lastIndex], ':')
+                || preg_match('/^[A-Za-z]+:/', $segment) === 1
+                || in_array($segment, self::UPLOAD_FLAGS, true);
+
+            if ($opensRule) {
+                $result[] = self::canonicalRuleName($segment);
+            } else {
+                $result[$lastIndex] .= ','.$segment;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Split one part of a validation form string into its name, multi-value
-     * flag, rules, and messages.
+     * flag, rules, messages, and element type.
      *
      * The element type's parenthesized options (checkbox([red:Red]),
      * select(states)) are stripped before the [rules][messages] blocks are
@@ -669,13 +763,19 @@ class Validate
         // and a flat pattern truncated the rules at the class's closing ]
         [$name, $blocks] = $this->splitDefinitionBlocks($withoutOptions);
 
+        // read from the text outside the [ ] blocks, so a pipe inside a regex
+        // rule is never taken for the type separator
+        $type = trim(explode('|', $name, 2)[1] ?? '');
+
         if ($name !== '') {
             $rulesString = $blocks[0] ?? '';
             $messagesString = $blocks[1] ?? '';
 
             // process the rules
             if ($rulesString !== '') {
-                $rules = $this->convertRulesToArray($rulesString);
+                $rules = isset(Build::FILE_TYPES[$type])
+                    ? $this->convertUploadRulesToArray($rulesString)
+                    : $this->convertRulesToArray($rulesString);
             }
 
             // process the messages
@@ -697,7 +797,7 @@ class Validate
             $name = Build::fieldNameFromDefinition($part);
         }
 
-        return [$name, $isMultiValue, $rules, $messages];
+        return [$name, $isMultiValue, $rules, $messages, $type];
     }
 
     /**

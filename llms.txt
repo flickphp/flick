@@ -83,7 +83,10 @@ Examples:
 - Country|select(countries)     → dropdown with prebuilt countries
 - Role|select([admin:Admin, editor:Editor]::Choose...)[required] → dropdown with placeholder
 - Newsletter|checkbox           → checkbox
-- Photo|file                    → file upload
+- Photo|image[required, width:400] → image upload, resized (Pro Upload service)
+- Resume|pdf                    → PDF upload (Pro Upload service)
+- Attachment|file[mime:text/csv] → any other file; the mime rule is required (Pro Upload service)
+- Photos|images                 → several files in one field; also pdfs, files
 - Name{John}                    → text with default value "John"
 - Email[required, email]        → with validation rules
 
@@ -95,7 +98,8 @@ Exceptions: hidden($name, $value); datalist($name, $label, $value, $options, $at
 Text inputs: text(), email(), password(), number(), tel(), url(), search(), color(), range()
 Date/time: date(), datetime(), time(), month(), week()
 Selection: select(), selectMultiple(), checkbox(), checkboxInline(), radio(), radioInline()
-Other: textarea(), file(), files(), hidden(), datalist()
+Files: file(), files(), image(), images(), pdf(), pdfs()
+Other: textarea(), hidden(), datalist()
 Structure: open(), close(), openMultipart(), fieldsetOpen(), fieldsetClose(), submit()
 
 ## Validation Rules
@@ -228,8 +232,15 @@ if ($file) {
     // echo $file->thumbnail->url;
 }
 
-// Generic file
-$file = $form->upload->file('document', ['required']);
+// Generic file (the mime rule is required)
+$file = $form->upload->file('document', ['required', 'mime:application/pdf,text/plain']);
+
+// Or declare the field's type in the form definition. Flick hands the field
+// and its rules to $form->upload->image(), ->pdf() or ->file().
+$form->createAndValidate(
+    'Name[required], Photo|image[required, width:400, name:avatar]',
+    onSuccess: fn ($data) => $data['photo']->url   // the saved file
+);
 ```
 
 ### Auth Service
@@ -307,7 +318,7 @@ echo $form->create('Name, Email, Password|password, Confirm Password|password');
 4. CSRF is enabled by default - disable with 'csrf' => false if needed
 5. Services lazy-load - $form->mail only loads mail service when accessed
 6. String syntax pipes: Name|type not Name | type (no spaces around pipe)
-7. For file uploads, use $form->openMultipart() or 'enctype' => 'multipart/form-data'
+7. A form made with create() or createAndValidate() is multipart on its own when it has a file field. When building piece by piece, use $form->openMultipart()
 
 ## Configuration
 
